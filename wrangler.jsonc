@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "edge-site-concierge",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-07-01",
+  "observability": { "enabled": true },
+  // Workers AI — text embeddings (bge).
+  "ai": { "binding": "AI" },
+  // Vectorize — vector store. Create with:
+  //   wrangler vectorize create site-concierge --dimensions=768 --metric=cosine
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "site-concierge" }]
+  // ANTHROPIC_API_KEY is a secret: wrangler secret put ANTHROPIC_API_KEY
+}

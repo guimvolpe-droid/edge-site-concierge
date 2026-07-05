@@ -1,0 +1,16 @@
+{
+  "docs": [
+    {
+      "source": "https://acme.example/returns",
+      "text": "Returns and refunds. You can return any item within 30 days of delivery for a full refund. Items must be unused and in original packaging. To start a return, email support@acme.example with your order number and we will send a prepaid label."
+    },
+    {
+      "source": "https://acme.example/shipping",
+      "text": "Shipping. We ship worldwide. Standard shipping takes five to seven business days and is free on orders over 50 dollars. Express shipping (two business days) is available at checkout for an extra fee."
+    },
+    {
+      "source": "https://acme.example/hours",
+      "text": "Support hours. Our support team is available Monday to Friday, nine to five Eastern Time. We are closed on public holidays. The fastest way to reach us is the contact form."
+    }
+  ]
+}
