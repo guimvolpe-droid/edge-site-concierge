@@ -39,7 +39,7 @@ Honest, incremental build. What runs today vs. what's next:
 | Embeddable **widget** (1 script tag) + demo page | ✅ |
 | Cloudflare **Worker** (Hono): `/ingest`, `/chat`, `/widget.js` | ✅ builds (`wrangler --dry-run`) |
 | Cloudflare providers: Workers AI (bge) + Vectorize + Claude Haiku | ✅ typechecked · verified at deploy¹ |
-| SSE streaming answers | 🔜 next |
+| **SSE streaming** answers (gate-first `meta` event, incremental widget render) | ✅ tested offline ([ADR 0002](docs/adr/0002-sse-streaming.md)) |
 | Sitemap / Playwright crawl ingestion | 🔜 next |
 | Live deploy + eval dashboard + Loom | 🔜 next¹ |
 
@@ -73,6 +73,9 @@ curl -X POST https://<your-worker>/chat   -H 'content-type: application/json' \
 curl -X POST https://<your-worker>/chat -H 'content-type: application/json' \
   -d '{"question":"What is your CEO'\''s home address?"}'
 # → { "answered": false, "text": "I don't know based on this site's content." }
+curl -N -X POST https://<your-worker>/chat -H 'content-type: application/json' \
+  -d '{"question":"How long do I have to return an item?","stream":true}'
+# → SSE: event `meta` (verdict + citations) first, then `delta` text fragments, then `done`
 ```
 
 Or drop the widget into any page:

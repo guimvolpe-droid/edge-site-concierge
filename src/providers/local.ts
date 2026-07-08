@@ -50,6 +50,16 @@ export class EchoChatModel implements ChatModel {
     const snippet = (m?.[1] ?? "").slice(0, 120);
     return `Based on the site content: ${snippet} [1]`.trim();
   }
+
+  // Streams the exact same text complete() would return, one word at a time, so the
+  // streaming contract (order, reassembly) is provable offline.
+  async *stream(system: string, user: string): AsyncIterable<string> {
+    const text = await this.complete(system, user);
+    const words = text.split(" ");
+    for (let i = 0; i < words.length; i++) {
+      yield i === 0 ? words[i] : ` ${words[i]}`;
+    }
+  }
 }
 
 function tokenize(s: string): string[] {

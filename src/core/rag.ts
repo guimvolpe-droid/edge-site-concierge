@@ -58,3 +58,39 @@ export async function answer(
   const citations: Citation[] = hits.map((h, i) => ({ n: i + 1, source: h.source, score: h.score }));
   return { answered: true, text, citations, topScore };
 }
+
+// Streaming variant. The gate still decides BEFORE the model: `meta` is always the first
+// event, carrying the verdict and citations; a refusal emits meta + done and never touches
+// the model. Deltas concatenated equal answer().text for the same inputs.
+export type StreamEvent =
+  | { type: "meta"; answered: boolean; citations: Citation[]; topScore: number }
+  | { type: "delta"; text: string }
+  | { type: "done" };
+
+export async function* answerStream(
+  question: string,
+  deps: RagDeps,
+  opts: RagOptions = DEFAULT_RAG,
+): AsyncGenerator<StreamEvent> {
+  const q = question.trim();
+  const [qv] = await deps.embeddings.embed([q]);
+  const hits = await deps.store.query(qv, opts.topK);
+  const topScore = hits[0]?.score ?? 0;
+
+  if (hits.length === 0 || topScore < opts.refusalThreshold) {
+    yield { type: "meta", answered: false, citations: [], topScore };
+    yield { type: "delta", text: REFUSAL_TEXT };
+    yield { type: "done" };
+    return;
+  }
+
+  const citations: Citation[] = hits.map((h, i) => ({ n: i + 1, source: h.source, score: h.score }));
+  yield { type: "meta", answered: true, citations, topScore };
+
+  const context = hits.map((h, i) => `[${i + 1}] (${h.source})\n${h.text}`).join("\n\n");
+  const user = `Context:\n${context}\n\nQuestion: ${q}`;
+  for await (const delta of deps.chat.stream(GROUNDING_SYSTEM, user)) {
+    yield { type: "delta", text: delta };
+  }
+  yield { type: "done" };
+}

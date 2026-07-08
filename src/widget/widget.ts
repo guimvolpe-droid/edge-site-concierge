@@ -1,4 +1,6 @@
 // The embeddable widget — served at /widget.js, dropped into any site with one <script> tag.
+// Streams answers over SSE (meta first: citations arrive before any token) and falls back
+// to plain JSON when the response isn't a stream.
 export const WIDGET_JS = `(function(){
   var ep = window.SC_ENDPOINT || '';
   var box = document.createElement('div');
@@ -13,17 +15,54 @@ export const WIDGET_JS = `(function(){
     + '</form></div>';
   document.body.appendChild(box);
   var log = box.querySelector('#sc-log');
-  function add(html){ log.innerHTML += '<div style="margin:6px 0">' + html + '</div>'; log.scrollTop = log.scrollHeight; }
+  function add(html){
+    var div = document.createElement('div');
+    div.style.margin = '6px 0';
+    div.innerHTML = html;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  }
+  function citesHtml(citations){
+    var cites = (citations || []).map(function(c){ return '[' + c.n + '] ' + c.source; }).join('  ');
+    return cites ? '<br><small style="color:#666">' + cites + '</small>' : '';
+  }
   box.querySelector('#sc-form').addEventListener('submit', async function(e){
     e.preventDefault();
     var input = box.querySelector('#sc-q');
     var q = input.value.trim(); if(!q) return;
     add('<b>You:</b> ' + q); input.value = '';
     try {
-      var r = await fetch(ep + '/chat', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ question: q }) });
-      var d = await r.json();
-      var cites = (d.citations || []).map(function(c){ return '[' + c.n + '] ' + c.source; }).join('  ');
-      add('<b>Site:</b> ' + d.text + (cites ? '<br><small style="color:#666">' + cites + '</small>' : ''));
+      var r = await fetch(ep + '/chat', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ question: q, stream: true }) });
+      var ct = (r.headers.get('content-type') || '');
+      if (!r.ok) throw new Error('http ' + r.status);
+      if (!r.body || ct.indexOf('text/event-stream') < 0) {
+        var d = await r.json();
+        add('<b>Site:</b> ' + d.text + citesHtml(d.citations));
+        return;
+      }
+      var row = add('<b>Site:</b> <span></span>');
+      var textEl = row.querySelector('span');
+      var meta = null;
+      var reader = r.body.getReader();
+      var decoder = new TextDecoder();
+      var buf = '';
+      for(;;){
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buf += decoder.decode(chunk.value, { stream: true });
+        // SSE frames can split across chunks: consume only complete lines, keep the tail.
+        var lines = buf.split('\\n');
+        buf = lines.pop() || '';
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          if (line.indexOf('data: ') !== 0) continue;
+          var ev = JSON.parse(line.slice(6));
+          if (ev.type === 'meta') meta = ev;
+          if (ev.type === 'delta') { textEl.textContent += ev.text; log.scrollTop = log.scrollHeight; }
+        }
+      }
+      if (meta) row.innerHTML += citesHtml(meta.citations);
     } catch (err) {
       add('<b>Site:</b> <span style="color:#b00">request failed</span>');
     }

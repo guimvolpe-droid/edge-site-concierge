@@ -26,6 +26,9 @@ export interface VectorStore {
 export interface ChatModel {
   // Must answer only from the provided context; no outside knowledge.
   complete(system: string, user: string): Promise<string>;
+  // Same contract as complete(), delivered as text deltas. Both implementations must
+  // stream, so the streaming path is testable offline with the local fake.
+  stream(system: string, user: string): AsyncIterable<string>;
 }
 
 export interface Chunk {

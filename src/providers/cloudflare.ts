@@ -67,4 +67,49 @@ export class ClaudeChatModel implements ChatModel {
       .map((b) => b.text ?? "")
       .join("");
   }
+
+  // Streaming over the Messages API SSE: yield the text of every content_block_delta.
+  // Like complete(), not exercised offline — the contract is proven against the local fake.
+  async *stream(system: string, user: string): AsyncIterable<string> {
+    const res = await fetch(`${this.baseUrl}/v1/messages`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": this.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: this.model,
+        max_tokens: 1024,
+        system,
+        messages: [{ role: "user", content: user }],
+        stream: true,
+      }),
+    });
+    if (!res.ok || !res.body) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      // SSE frames are newline-delimited; a frame may split across chunks, so keep the tail.
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice("data: ".length).trim();
+        if (payload === "" || payload === "[DONE]") continue;
+        const event = JSON.parse(payload) as {
+          type: string;
+          delta?: { type: string; text?: string };
+        };
+        if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+          yield event.delta.text ?? "";
+        }
+      }
+    }
+  }
 }
