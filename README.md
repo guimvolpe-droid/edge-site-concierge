@@ -40,19 +40,29 @@ Honest, incremental build. What runs today vs. what's next:
 | Cloudflare **Worker** (Hono): `/ingest`, `/chat`, `/widget.js` | ✅ builds (`wrangler --dry-run`) |
 | Cloudflare providers: Workers AI (bge) + Vectorize + Claude Haiku | ✅ typechecked · verified at deploy¹ |
 | **SSE streaming** answers (gate-first `meta` event, incremental widget render) | ✅ tested offline ([ADR 0002](docs/adr/0002-sse-streaming.md)) |
-| Sitemap / Playwright crawl ingestion | 🔜 next |
+| **Sitemap crawl** ingestion (local script → `/ingest`) | ✅ tested offline ([ADR 0003](docs/adr/0003-crawl-as-local-script.md))² |
 | Live deploy + eval dashboard + Loom | 🔜 next¹ |
 
 ¹ Deploy needs a Cloudflare account + `ANTHROPIC_API_KEY` (the project owner's budget gate). Every demo
 uses synthetic data and surfaces real cost/latency and the cases where it refuses — anti-hype.
+² Fetch + tag-stripping, no headless browser: pages rendered entirely by client-side JavaScript yield
+little or no text. If SPA sites matter later, a Playwright extractor can slot in behind the same contract.
 
 ## Develop & verify (no account needed)
 
 ```bash
 npm install
-npm test         # RAG core, refusal gate, and groundedness eval — all offline
+npm test         # RAG core, refusal gate, groundedness eval, SSE contract, crawl — all offline
 npm run typecheck
 npx wrangler deploy --dry-run --outdir dist   # bundles the Worker + validates bindings
+```
+
+Crawl a real site's sitemap into a corpus (or straight into a running concierge):
+
+```bash
+npm run crawl -- https://<site>/sitemap.xml --dry-run          # show what would be ingested
+npm run crawl -- https://<site>/sitemap.xml --out demo/corpus.json
+npm run crawl -- https://<site>/sitemap.xml --endpoint http://localhost:8787/ingest
 ```
 
 ## Deploy (when the budget gate opens)
