@@ -57,6 +57,8 @@ npm run typecheck
 npx wrangler deploy --dry-run --outdir dist   # bundles the Worker + validates bindings
 ```
 
+![npm test — 21 tests passing offline: RAG core, refusal gate, groundedness eval, SSE contract, crawl](docs/assets/tests-passing.png)
+
 Crawl a real site's sitemap into a corpus (or straight into a running concierge):
 
 ```bash
