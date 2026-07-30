@@ -51,7 +51,7 @@ little or no text. If SPA sites matter later, a Playwright extractor can slot in
 
 ```bash
 npm install
-npm test         # RAG core, refusal gate, groundedness eval, SSE contract, crawl — all offline
+npm test         # RAG core, refusal gate, groundedness eval, SSE contract, crawl. All offline
 npm run typecheck
 npx wrangler deploy --dry-run --outdir dist   # bundles the Worker + validates bindings
 ```
