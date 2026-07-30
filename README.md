@@ -1,17 +1,16 @@
 # edge-site-concierge
 
-**An embeddable AI concierge that answers *only* from a site's own content** — with citations, and an
-honest *"I don't know"* when the answer isn't there. One `<script>` tag, running on the edge.
+An embeddable AI concierge that answers only from a site's own content. It cites its sources and
+replies "I don't know" when the answer is not in the content. One `<script>` tag, running on the edge.
 
-Built on **Cloudflare Workers** (Hono · Workers AI embeddings · Vectorize · streaming) with **Claude** for
-grounded answers. The anti-hallucination guarantee is a **retrieval-score refusal gate** decided *before*
-the model is ever called — see [`docs/adr/0001-refusal-gate.md`](docs/adr/0001-refusal-gate.md).
+Built on Cloudflare Workers (Hono · Workers AI embeddings · Vectorize · streaming) with Claude for
+grounded answers. The anti-hallucination guarantee is a retrieval-score **refusal gate** decided before
+the model is called. See [`docs/adr/0001-refusal-gate.md`](docs/adr/0001-refusal-gate.md).
 
 ## Why
 
-Most "chat with your site" widgets hallucinate the moment a question isn't covered by the content. This
-one refuses honestly and cites its sources — the behaviour a buyer actually needs, proven with an eval
-rather than promised.
+Most "chat with your site" widgets hallucinate when a question is not covered by the content. This one
+refuses and cites its sources. That behaviour is verified by the groundedness eval in the test suite.
 
 ## How it works
 
@@ -22,29 +21,29 @@ POST /chat   ─► embed question ─► retrieve top-K ─► [refusal gate] �
                                         score < threshold ⇒ "I don't know" (no model call)
 ```
 
-The RAG core is **provider-agnostic** (`src/core`): it depends on `Embeddings` / `VectorStore` /
-`ChatModel` interfaces. Production uses the Cloudflare + Claude providers (`src/providers/cloudflare.ts`);
-the test suite uses in-memory fakes (`src/providers/local.ts`), so retrieval, grounding, the refusal gate,
-and the eval are all verified **offline** — no account or API key required.
+The RAG core is provider-agnostic (`src/core`). It depends on `Embeddings` / `VectorStore` /
+`ChatModel` interfaces. Production uses the Cloudflare + Claude providers (`src/providers/cloudflare.ts`).
+The test suite uses in-memory fakes (`src/providers/local.ts`), so retrieval, grounding, the refusal gate,
+and the eval are all verified offline. No account or API key is required.
 
 ## Status
 
-Honest, incremental build. What runs today vs. what's next:
+The build is incremental. What runs today and what comes next:
 
 | Area | Status |
 |---|---|
 | Provider-agnostic RAG core (chunk → embed → retrieve → grounded answer) | ✅ tested offline |
-| Anti-hallucination **refusal gate** (retrieval-score threshold, before the model) | ✅ unit-tested |
-| Groundedness **eval harness** (golden set: answers when grounded, refuses when not) | ✅ tested |
-| Embeddable **widget** (1 script tag) + demo page | ✅ |
-| Cloudflare **Worker** (Hono): `/ingest`, `/chat`, `/widget.js` | ✅ builds (`wrangler --dry-run`) |
+| Anti-hallucination refusal gate (retrieval-score threshold, before the model) | ✅ unit-tested |
+| Groundedness eval harness (golden set: answers when grounded, refuses when not) | ✅ tested |
+| Embeddable widget (1 script tag) + demo page | ✅ |
+| Cloudflare Worker (Hono): `/ingest`, `/chat`, `/widget.js` | ✅ builds (`wrangler --dry-run`) |
 | Cloudflare providers: Workers AI (bge) + Vectorize + Claude Haiku | ✅ typechecked · verified at deploy¹ |
-| **SSE streaming** answers (gate-first `meta` event, incremental widget render) | ✅ tested offline ([ADR 0002](docs/adr/0002-sse-streaming.md)) |
-| **Sitemap crawl** ingestion (local script → `/ingest`) | ✅ tested offline ([ADR 0003](docs/adr/0003-crawl-as-local-script.md))² |
+| SSE streaming answers (gate-first `meta` event, incremental widget render) | ✅ tested offline ([ADR 0002](docs/adr/0002-sse-streaming.md)) |
+| Sitemap crawl ingestion (local script → `/ingest`) | ✅ tested offline ([ADR 0003](docs/adr/0003-crawl-as-local-script.md))² |
 | Live deploy + eval dashboard + Loom | 🔜 next¹ |
 
 ¹ Deploy needs a Cloudflare account + `ANTHROPIC_API_KEY` (the project owner's budget gate). Every demo
-uses synthetic data and surfaces real cost/latency and the cases where it refuses — anti-hype.
+uses synthetic data and reports real cost, latency, and the cases where it refuses.
 ² Fetch + tag-stripping, no headless browser: pages rendered entirely by client-side JavaScript yield
 little or no text. If SPA sites matter later, a Playwright extractor can slot in behind the same contract.
 
@@ -57,7 +56,7 @@ npm run typecheck
 npx wrangler deploy --dry-run --outdir dist   # bundles the Worker + validates bindings
 ```
 
-![npm test — 21 tests passing offline: RAG core, refusal gate, groundedness eval, SSE contract, crawl](docs/assets/tests-passing.png)
+![npm test: 21 tests passing offline (RAG core, refusal gate, groundedness eval, SSE contract, crawl)](docs/assets/tests-passing.png)
 
 Crawl a real site's sitemap into a corpus (or straight into a running concierge):
 
