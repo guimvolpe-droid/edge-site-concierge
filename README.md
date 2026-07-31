@@ -3,6 +3,11 @@
 An embeddable AI concierge that answers only from a site's own content. It cites its sources and
 replies "I don't know" when the answer is not in the content. One `<script>` tag, running on the edge.
 
+![The concierge widget answering a question with a citation and refusing an off-content question, captured from this repo's local demo running on offline providers](docs/assets/widget-demo.png)
+
+In plain terms, the widget answers only with what is on your site and says "I don't know" instead of
+making something up.
+
 Built on Cloudflare Workers (Hono · Workers AI embeddings · Vectorize · streaming) with Claude for
 grounded answers. The anti-hallucination guarantee is a retrieval-score **refusal gate** decided before
 the model is called. See [`docs/adr/0001-refusal-gate.md`](docs/adr/0001-refusal-gate.md).
@@ -42,7 +47,7 @@ The build is incremental. What runs today and what comes next:
 | Sitemap crawl ingestion (local script → `/ingest`) | ✅ tested offline ([ADR 0003](docs/adr/0003-crawl-as-local-script.md))² |
 | Live deploy + eval dashboard + Loom | 🔜 next¹ |
 
-¹ Deploy needs a Cloudflare account + `ANTHROPIC_API_KEY` (the project owner's budget gate). Every demo
+¹ Deploy needs a Cloudflare account + `ANTHROPIC_API_KEY`. A live deploy is planned but not up yet. Every demo
 uses synthetic data and reports real cost, latency, and the cases where it refuses.
 ² Fetch + tag-stripping, no headless browser: pages rendered entirely by client-side JavaScript yield
 little or no text. If SPA sites matter later, a Playwright extractor can slot in behind the same contract.
@@ -66,7 +71,7 @@ npm run crawl -- https://<site>/sitemap.xml --out demo/corpus.json
 npm run crawl -- https://<site>/sitemap.xml --endpoint http://localhost:8787/ingest
 ```
 
-## Deploy (when the budget gate opens)
+## Deploy (not live yet)
 
 ```bash
 wrangler vectorize create site-concierge --dimensions=768 --metric=cosine
